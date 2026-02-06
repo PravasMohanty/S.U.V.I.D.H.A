@@ -2,12 +2,10 @@ const express = require('express')
 const dotenv = require('dotenv')
 const cors = require('cors')
 const http = require('http')
-const dbConnect = require('../config/db')
+const { dbConnect } = require('../config/db')
 const aliveRouter = require('../routes/aliveRouter')
-// const { connectRedis } = require("./config/redis");
 
 dbConnect();
-// connectRedis();
 
 const app = express();
 const server = http.createServer(app);
