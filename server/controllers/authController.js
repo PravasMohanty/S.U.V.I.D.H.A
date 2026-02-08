@@ -4,7 +4,6 @@ const { generateToken } = require("../utils/generateToken");
 const { hashAadhaar } = require("../utils/adhaarHash");
 const { generateUserId } = require("../utils/generateCnt");
 
-
 // ===========================
 // LOGIN
 // ===========================
@@ -12,42 +11,36 @@ const Login = async (req, res) => {
     try {
         const { mobile, aadhar, email, password } = req.body;
 
-        if (!password || (!mobile && !aadhar && !email)) {
-            return res.status(400).json({ message: "Credentials required" });
+        if (!password) {
+            return res.status(400).json({ message: "Password is required" });
         }
 
-        let rows;
+        if (!mobile && !aadhar && !email) {
+            return res.status(400).json({ message: "Mobile, Aadhar, or Email is required" });
+        }
+
+        // Build query based on input
+        let query, param;
 
         if (mobile) {
-            [rows] = await pool.execute(
-                "SELECT * FROM users WHERE mobile = ?",
-                [mobile]
-            );
-        }
-        else if (aadhar) {
-            [rows] = await pool.execute(
-                "SELECT * FROM users WHERE aadhar_hash = ?",
-                [hashAadhaar(aadhar)]
-            );
-        }
-        else {
-            [rows] = await pool.execute(
-                "SELECT * FROM users WHERE email = ?",
-                [email]
-            );
+            query = "SELECT * FROM users WHERE mobile = ?";
+            param = mobile;
+        } else if (aadhar) {
+            query = "SELECT * FROM users WHERE aadhar_hash = ?";
+            param = hashAadhaar(aadhar);
+        } else {
+            query = "SELECT * FROM users WHERE email = ?";
+            param = email;
         }
 
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "User not found" });
+        const [rows] = await pool.execute(query, [param]);
+
+        // Check user exists and password matches
+        if (rows.length === 0 || !await bcrypt.compare(password, rows[0].password)) {
+            return res.status(401).json({ message: "Invalid credentials" });
         }
 
         const user = rows[0];
-
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({ message: "Invalid password" });
-        }
 
         const token = generateToken({
             user_id: user.user_id,
@@ -68,82 +61,92 @@ const Login = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Login Error:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
-
 
 // ===========================
 // REGISTER
 // ===========================
 const Register = async (req, res) => {
     try {
-        const {
-            full_name,
-            mobile,
-            aadhar,
-            email,
-            password,
-            language_preference
-        } = req.body;
+        const { full_name, mobile, aadhar, email, password, language_preference } = req.body;
 
-        if (!full_name || !password || (!mobile && !aadhar && !email)) {
-            return res.status(400).json({ message: "Required fields missing" });
+        // Validation
+        if (!full_name || !password) {
+            return res.status(400).json({ message: "Name and password are required" });
         }
 
-        // 🔍 Duplicate checks
+        if (!mobile && !aadhar && !email) {
+            return res.status(400).json({ message: "At least one of mobile, aadhar, or email is required" });
+        }
+
+        // Password strength check
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+
+        // Validate mobile format (if provided)
+        if (mobile && !/^[0-9]{10}$/.test(mobile)) {
+            return res.status(400).json({ message: "Invalid mobile number format" });
+        }
+
+        // Validate email format (if provided)
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ message: "Invalid email format" });
+        }
+
+        // Check duplicates
         const checks = [];
 
         if (email) {
-            checks.push(
-                pool.execute("SELECT user_id FROM users WHERE email = ?", [email])
-            );
+            checks.push(pool.execute("SELECT user_id FROM users WHERE email = ?", [email]));
         }
-
         if (mobile) {
-            checks.push(
-                pool.execute("SELECT user_id FROM users WHERE mobile = ?", [mobile])
-            );
+            checks.push(pool.execute("SELECT user_id FROM users WHERE mobile = ?", [mobile]));
         }
-
         if (aadhar) {
-            checks.push(
-                pool.execute(
-                    "SELECT user_id FROM users WHERE aadhar_hash = ?",
-                    [hashAadhaar(aadhar)]
-                )
-            );
+            checks.push(pool.execute("SELECT user_id FROM users WHERE aadhar_hash = ?", [hashAadhaar(aadhar)]));
         }
 
         const results = await Promise.all(checks);
 
         for (const [rows] of results) {
-            if (rows.length) {
-                return res.status(409).json({ message: "User already exists" });
+            if (rows.length > 0) {
+                return res.status(409).json({ message: "User already exists with this mobile/email/aadhar" });
             }
         }
 
-        // 🔐 Hash password
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 🆔 Generate unique user_id
-        let userId, exists = true;
+        // Generate unique user_id
+        let userId = generateUserId();
+        let attempts = 0;
+        const MAX_ATTEMPTS = 10;
 
-        while (exists) {
-            userId = generateUserId();
-            const [rows] = await pool.execute(
+        while (attempts < MAX_ATTEMPTS) {
+            const [existing] = await pool.execute(
                 "SELECT user_id FROM users WHERE user_id = ?",
                 [userId]
             );
-            exists = rows.length > 0;
+
+            if (existing.length === 0) break;
+
+            userId = generateUserId();
+            attempts++;
         }
 
-        // 🧾 Insert
+        if (attempts === MAX_ATTEMPTS) {
+            return res.status(500).json({ message: "Unable to generate unique user ID" });
+        }
+
+        // Insert user
         await pool.execute(
             `INSERT INTO users 
-      (user_id, full_name, mobile, email, password, aadhar_hash, language_preference) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, full_name, mobile, email, password, aadhar_hash, language_preference) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [
                 userId,
                 full_name,
@@ -151,7 +154,7 @@ const Register = async (req, res) => {
                 email || null,
                 hashedPassword,
                 aadhar ? hashAadhaar(aadhar) : null,
-                language_preference || "en"
+                language_preference || "English"
             ]
         );
 
@@ -162,7 +165,7 @@ const Register = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Register Error:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
