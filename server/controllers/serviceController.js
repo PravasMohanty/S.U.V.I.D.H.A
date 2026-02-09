@@ -1,4 +1,5 @@
 const { pool } = require("../config/db");
+const { generateServiceId } = require("../utils/generateContent");
 
 // ===========================
 // GET ALL SERVICES FROM A GIVEN DEPARTMENT
@@ -52,20 +53,34 @@ const GetServicesByDepartment = async (req, res) => {
 // ===========================
 const AddService = async (req, res) => {
     try {
-        const { dept_id } = req.params;  // ✅ Getting from params
-        const { service_name, service_type, description, fee, processing_time_days } = req.body;
+        const { dept_id } = req.params;
+        const {
+            service_name,
+            service_type,
+            description,
+            fee,
+            processing_time_days
+        } = req.body;
 
-        if (!service_name || !service_type) {  // ✅ dept_id comes from params, so not checking in body
-            return res.status(400).json({ message: "Service name and service type are required" });
+        if (!service_name || !service_type) {
+            return res.status(400).json({
+                message: "Service name and service type are required"
+            });
         }
 
-        // Validate service_type
-        const validTypes = ['Payable', 'Non-Payable'];
+        const validTypes = ["Payable", "Non-Payable"];
         if (!validTypes.includes(service_type)) {
-            return res.status(400).json({ message: "Service type must be 'Payable' or 'Non-Payable'" });
+            return res.status(400).json({
+                message: "Service type must be 'Payable' or 'Non-Payable'"
+            });
         }
 
-        // Check if department exists
+        if (service_type === "Payable" && (fee === undefined || fee <= 0)) {
+            return res.status(400).json({
+                message: "Valid fee is required for payable services"
+            });
+        }
+
         const [department] = await pool.execute(
             "SELECT dept_id FROM departments WHERE dept_id = ?",
             [dept_id]
@@ -75,30 +90,40 @@ const AddService = async (req, res) => {
             return res.status(404).json({ message: "Department not found" });
         }
 
-        // Check if service already exists in this department
         const [existing] = await pool.execute(
             "SELECT service_id FROM services WHERE dept_id = ? AND service_name = ?",
             [dept_id, service_name]
         );
 
         if (existing.length > 0) {
-            return res.status(409).json({ message: "Service already exists in this department" });
+            return res.status(409).json({
+                message: "Service already exists in this department"
+            });
         }
 
-        // Validate fee for payable services
-        if (service_type === 'Payable' && (!fee || fee <= 0)) {
-            return res.status(400).json({ message: "Fee is required for payable services" });
+        let serviceId;
+        let exists = true;
+
+        while (exists) {
+            serviceId = generateServiceId();
+            const [rows] = await pool.execute(
+                "SELECT service_id FROM services WHERE service_id = ?",
+                [serviceId]
+            );
+            exists = rows.length > 0;
         }
 
-        const [result] = await pool.execute(
-            `INSERT INTO services (dept_id, service_name, service_type, description, fee, processing_time_days) 
-             VALUES (?, ?, ?, ?, ?, ?)`,
+        await pool.execute(
+            `INSERT INTO services 
+            (service_id, dept_id, service_name, service_type, description, fee, processing_time_days)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [
+                serviceId,
                 dept_id,
                 service_name,
                 service_type,
                 description || null,
-                service_type === 'Payable' ? fee : 0.00,
+                service_type === "Payable" ? fee : 0.0,
                 processing_time_days || 7
             ]
         );
@@ -106,7 +131,7 @@ const AddService = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: "Service added successfully",
-            service_id: result.insertId
+            service_id: serviceId
         });
 
     } catch (error) {
@@ -120,12 +145,12 @@ const AddService = async (req, res) => {
 // ===========================
 const UpdateService = async (req, res) => {
     try {
-        const { dept_id, service_id } = req.params;  // ✅ Getting both from params
+        const { dept_id, service_id } = req.params;
         const { service_name, service_type, description, fee, processing_time_days, is_active } = req.body;
 
         // Check if service exists in the given department
         const [existing] = await pool.execute(
-            "SELECT service_id, service_type FROM services WHERE service_id = ? AND dept_id = ?",  // ✅ Added dept_id check
+            "SELECT service_id, service_type FROM services WHERE service_id = ? AND dept_id = ?",
             [service_id, dept_id]
         );
 
@@ -197,11 +222,11 @@ const UpdateService = async (req, res) => {
 // ===========================
 const RemoveService = async (req, res) => {
     try {
-        const { dept_id, service_id } = req.params;  // ✅ Getting both from params
+        const { dept_id, service_id } = req.params;
 
         // Check if service exists in the given department
         const [service] = await pool.execute(
-            "SELECT service_id FROM services WHERE service_id = ? AND dept_id = ?",  // ✅ Added dept_id check
+            "SELECT service_id FROM services WHERE service_id = ? AND dept_id = ?",
             [service_id, dept_id]
         );
 
@@ -251,10 +276,10 @@ const RemoveService = async (req, res) => {
 // ===========================
 const ToggleServiceStatus = async (req, res) => {
     try {
-        const { dept_id, service_id } = req.params;  // ✅ Getting both from params
+        const { dept_id, service_id } = req.params;
 
         const [service] = await pool.execute(
-            "SELECT service_id, is_active FROM services WHERE service_id = ? AND dept_id = ?",  // ✅ Added dept_id check
+            "SELECT service_id, is_active FROM services WHERE service_id = ? AND dept_id = ?",
             [service_id, dept_id]
         );
 

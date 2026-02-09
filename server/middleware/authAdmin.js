@@ -13,8 +13,17 @@ const authAdmin = async (req, res, next) => {
             });
         }
 
-        // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        // Verify token - Use consistent secret
+        const secret = process.env.SECRET_KEY;
+        const decoded = jwt.verify(token, secret);
+
+        // Validate token type (optional security check)
+        if (decoded.type && decoded.type !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: "Invalid token type. Admin token required"
+            });
+        }
 
         // Check if admin exists in database
         const [rows] = await pool.execute(

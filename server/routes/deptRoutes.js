@@ -9,7 +9,7 @@ const {
     UpdateDepartment,
     DeleteDepartment,
     GetDepartmentStats
-} = require("../controllers/departmentController");
+} = require("../controllers/deptController");
 
 // Public routes (anyone can view)
 deptRouter.get("/", GetAllDepartments);

@@ -44,8 +44,8 @@ CREATE TABLE departments (
 -- ADMIN-DEPARTMENT MAPPING
 -- ===========================
 CREATE TABLE admin_departments (
-    admin_id VARCHAR(20) NOT NULL,
-    dept_id INT NOT NULL,
+    admin_id CHAR(9) NOT NULL,
+    dept_id CHAR(13) NOT NULL,
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (admin_id, dept_id),
     FOREIGN KEY (admin_id) REFERENCES admins(admin_id) ON DELETE CASCADE,
@@ -56,8 +56,8 @@ CREATE TABLE admin_departments (
 -- SERVICES TABLE
 -- ===========================
 CREATE TABLE services (
-    service_id INT AUTO_INCREMENT PRIMARY KEY,
-    dept_id INT NOT NULL,
+    service_id CHAR(25) PRIMARY KEY,
+    dept_id CHAR(13) NOT NULL,
     service_name VARCHAR(100) NOT NULL,
     service_type ENUM('Payable', 'Non-Payable') NOT NULL,
     description TEXT,
@@ -73,12 +73,12 @@ CREATE TABLE services (
 -- ===========================
 CREATE TABLE requests (
     request_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    service_id INT NOT NULL,
+    user_id CHAR(11) NOT NULL,
+    service_id CHAR(25) NOT NULL,
     request_type ENUM('Request', 'Complaint') NOT NULL,
     description TEXT,
     status ENUM('Pending', 'In Progress', 'Completed', 'Rejected', 'Cancelled') DEFAULT 'Pending',
-    assigned_to VARCHAR(20),
+    assigned_to CHAR(9),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
@@ -94,7 +94,7 @@ CREATE TABLE request_status_history (
     request_id INT NOT NULL,
     old_status VARCHAR(30),
     new_status VARCHAR(30) NOT NULL,
-    changed_by VARCHAR(20),
+    changed_by CHAR(9),
     remarks TEXT,
     changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (request_id) REFERENCES requests(request_id) ON DELETE CASCADE,
@@ -106,8 +106,8 @@ CREATE TABLE request_status_history (
 -- ===========================
 CREATE TABLE payments (
     payment_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    service_id INT NOT NULL,
+    user_id CHAR(11) NOT NULL,
+    service_id CHAR(25) NOT NULL,
     request_id INT,
     amount DECIMAL(10,2) NOT NULL,
     transaction_ref VARCHAR(100) UNIQUE,
@@ -124,7 +124,7 @@ CREATE TABLE payments (
 -- ===========================
 CREATE TABLE documents (
     document_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id CHAR(11) NOT NULL,
     request_id INT,
     document_type VARCHAR(50) NOT NULL,
     document_number VARCHAR(50),
@@ -144,7 +144,7 @@ CREATE TABLE documents (
 -- ===========================
 CREATE TABLE notifications (
     notification_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id CHAR(11) NOT NULL,
     title VARCHAR(200),
     message TEXT NOT NULL,
     notification_type ENUM('Info', 'Alert', 'Success', 'Warning') DEFAULT 'Info',
@@ -159,7 +159,7 @@ CREATE TABLE notifications (
 -- ===========================
 CREATE TABLE sessions (
     session_id VARCHAR(255) PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id CHAR(11) NOT NULL,
     user_type ENUM('user', 'admin') NOT NULL,
     ip_address VARCHAR(45),
     user_agent TEXT,
@@ -174,8 +174,8 @@ CREATE TABLE sessions (
 -- ===========================
 CREATE TABLE feedback (
     feedback_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    service_id INT NOT NULL,
+    user_id CHAR(11) NOT NULL,
+    service_id CHAR(25) NOT NULL,
     request_id INT,
     rating INT CHECK (rating BETWEEN 1 AND 5),
     comment TEXT,

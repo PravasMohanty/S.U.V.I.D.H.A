@@ -20,7 +20,7 @@ serviceRouter.get("/:dept_id/services", GetServicesByDepartment);
 // ===========================
 serviceRouter.post("/:dept_id/services", authAdmin, AddService);
 serviceRouter.put("/:dept_id/services/:service_id", authAdmin, UpdateService);
-serviceRouter.delete(":dept_id/services/:service_id", authAdmin, RemoveService);
+serviceRouter.delete("/:dept_id/services/:service_id", authAdmin, RemoveService);
 serviceRouter.patch("/:dept_id/services/:service_id/toggle", authAdmin, ToggleServiceStatus);
 serviceRouter.get("/:dept_id/services/:service_id/stats", authAdmin, GetServiceStats);
 

@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 const { pool } = require("../config/db");
 const { generateToken } = require("../utils/generateToken");
-const { generateAdminId, generateAdminDefaultPassword } = require("../utils/generateCnt");
+const { generateAdminId, generateAdminDefaultPassword } = require("../utils/generateContent");
 
 // LOGIN
 const AdminLogin = async (req, res) => {
@@ -23,12 +23,25 @@ const AdminLogin = async (req, res) => {
         }
 
         const admin = rows[0];
-        const token = generateToken({ admin_id: admin.admin_id, role: admin.role });
+
+
+        const token = generateToken({
+            admin_id: admin.admin_id,
+            email: admin.email,
+            role: admin.role,
+            type: 'admin'
+        });
 
         return res.status(200).json({
             success: true,
+            message: "Admin login successful",
             token,
-            admin: { admin_id: admin.admin_id, name: admin.name, email: admin.email, role: admin.role }
+            admin: {
+                admin_id: admin.admin_id,
+                name: admin.name,
+                email: admin.email,
+                role: admin.role
+            }
         });
 
     } catch (error) {
@@ -91,8 +104,14 @@ const AddAdmin = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: "Admin added",
-            admin: { admin_id, name, email, role, password } // Send password once
+            message: "Admin added successfully",
+            admin: {
+                admin_id,
+                name,
+                email,
+                role,
+                password // Send password once for initial setup
+            }
         });
 
     } catch (error) {
@@ -146,6 +165,7 @@ const ResetAdminPassword = async (req, res) => {
         });
     }
 };
+
 // GET ADMIN PROFILE
 const GetAdminProfile = async (req, res) => {
     try {
@@ -177,6 +197,5 @@ const GetAdminProfile = async (req, res) => {
         });
     }
 };
-
 
 module.exports = { AdminLogin, AddAdmin, ResetAdminPassword, GetAdminProfile };

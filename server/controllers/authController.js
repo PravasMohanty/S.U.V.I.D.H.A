@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const { pool } = require("../config/db");
 const { generateToken } = require("../utils/generateToken");
 const { hashAadhaar } = require("../utils/adhaarHash");
-const { generateUserId } = require("../utils/generateCnt");
+const { generateUserId } = require("../utils/generateContent");
 
 // ===========================
 // LOGIN
@@ -44,7 +44,8 @@ const Login = async (req, res) => {
 
         const token = generateToken({
             user_id: user.user_id,
-            email: user.email
+            email: user.email,
+            type: 'user'
         });
 
         return res.status(200).json({
@@ -124,7 +125,7 @@ const Register = async (req, res) => {
         // Generate unique user_id
         let userId = generateUserId();
         let attempts = 0;
-        const MAX_ATTEMPTS = 10;
+        const MAX_ATTEMPTS = 30;
 
         while (attempts < MAX_ATTEMPTS) {
             const [existing] = await pool.execute(
@@ -158,10 +159,24 @@ const Register = async (req, res) => {
             ]
         );
 
+        //  GENERATE TOKEN - This was missing!
+        const token = generateToken({
+            user_id: userId,
+            email: email,
+            type: 'user'
+        });
+
         return res.status(201).json({
             success: true,
             message: "User registered successfully",
-            user_id: userId
+            token,
+            user: {
+                user_id: userId,
+                full_name: full_name,
+                email: email,
+                mobile: mobile,
+                language_preference: language_preference || "English"
+            }
         });
 
     } catch (error) {

@@ -20,12 +20,21 @@ function generateOTP() {
 }
 
 const generateAdminDefaultPassword = (name, role) => {
-    let stringpass = `Admin@${name}_${role}`;
+    return stringpass = `Admin@${name}_${role}`;
 }
 
 const generateDepartmentId = () => {
     const random = crypto.randomBytes(4).toString("hex").toUpperCase();
     return `DEPT_${random}`
+}
+
+const generateRequestId = (service_id) => {
+    return Math.floor(10000000 + Math.random() * 90000000);
+}
+
+const generateServiceId = (dept_id) => {
+    const random = crypto.randomBytes(3).toString("hex").toUpperCase();
+    return `SERV_${random}@${dept_id}`
 }
 
 module.exports = {
@@ -34,5 +43,7 @@ module.exports = {
     generateOTP,
     generateAdminId,
     generateDepartmentId,
-    generateAdminDefaultPassword
+    generateAdminDefaultPassword,
+    generateRequestId,
+    generateServiceId
 };

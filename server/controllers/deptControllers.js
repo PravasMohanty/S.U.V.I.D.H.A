@@ -1,5 +1,5 @@
 const { pool } = require("../config/db");
-const { generateDepartmentId } = require("../utils/generateCnt");
+const { generateDepartmentId } = require("../utils/generateContent");
 
 // ===========================
 // GET ALL DEPARTMENTS
